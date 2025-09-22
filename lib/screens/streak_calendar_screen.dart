@@ -69,14 +69,45 @@ class StreakCalendarScreen extends StatelessWidget {
               icon = Icons.star;
             }
 
-            return Tooltip(
-              message: "${day.day}.${day.month}.: $successCount / $goalCount cílů",
-              child: CircleAvatar(
-                backgroundColor: color,
-                child: Icon(icon, size: 16, color: Colors.white),
+            return InkWell(
+              onTap: () {
+                showDialog(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    title: Text("${day.day}.${day.month}.${day.year}"),
+                    content: booksReadToday.isEmpty
+                        ? const Text("Tento den jsi nečetl.")
+                        : Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: booksReadToday.map((book) {
+                              final key = "${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}";
+                              final readAmount = book.readingHistory?[key] ?? 0;
+                              final goal = book.readingMode == ReadingMode.pages
+                                ? book.calculatedDailyGoalPages
+                                : book.calculatedDailyGoalChapters;
+
+                              return ListTile(
+                                title: Text(book.title),
+                                subtitle: Text("Přečteno: $readAmount / $goal"),
+                                trailing: Icon(
+                                  readAmount >= goal ? Icons.check : Icons.remove,
+                                  color: readAmount >= goal ? Colors.green : Colors.red,
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                  ),
+                );
+              },
+              child: Tooltip(
+                message: "${day.day}.${day.month}.: $successCount / $goalCount cílů",
+                child: CircleAvatar(
+                  backgroundColor: color,
+                  child: Icon(icon, size: 16, color: Colors.white),
+                ),
               ),
             );
-          },
+          }
         ),
       ),
     );
