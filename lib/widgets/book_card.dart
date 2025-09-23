@@ -108,7 +108,7 @@ void _refreshState() {
       nextBook = null;
     }
 
-    if (nextBook != null && nextBook.title != null) {
+    if (nextBook != null) {
       showDialog(
         context: context,
         builder: (context) => AlertDialog(

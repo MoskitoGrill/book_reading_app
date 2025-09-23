@@ -492,13 +492,11 @@ class _AddBookScreenState extends State<AddBookScreen> {
                 final selectedSet = <bool>{};
                 if (_chaptersEnabled) selectedSet.add(true);
                 if (_pagesEnabled) selectedSet.add(false);
-            
+
+                // 🔧 Pokud je prázdné, nastavíme default (třeba kapitoly)
                 if (selectedSet.isEmpty) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    setState(() {
-                      _chaptersEnabled = true;
-                    });
-                  });
+                  selectedSet.add(true);
+                  _chaptersEnabled = true;
                 }
 
                 return SegmentedButton<bool>(
@@ -528,7 +526,7 @@ class _AddBookScreenState extends State<AddBookScreen> {
                       if (_chapterCount < 1 && _chaptersEnabled) _chapterCount = 1;
                       if (_pageCount < 1 && _pagesEnabled) _pageCount = 1;
                     });
-                  }
+                  },
                 );
               },
             ),

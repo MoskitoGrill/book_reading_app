@@ -63,7 +63,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   late Box<Book> bookBox;
   BookFilter _selectedFilter = BookFilter.all;
   BookSort _selectedSort = BookSort.recent;
-  TextEditingController _searchController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
   @override
