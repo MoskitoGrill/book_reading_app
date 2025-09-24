@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/book.dart';
 import 'dart:io';
-import '../widgets/book_detail_sheet.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../screens/edit_reading_plan_screen.dart';
 
