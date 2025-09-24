@@ -412,16 +412,19 @@ class _AddBookScreenState extends State<AddBookScreen> {
             TextField(
               controller: _titleController,
               decoration: const InputDecoration(labelText: 'Název knihy'),
+              textCapitalization: TextCapitalization.sentences,
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _authorController,
               decoration: const InputDecoration(labelText: 'Autor'),
+              textCapitalization: TextCapitalization.words,
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _genreController,
               decoration: const InputDecoration(labelText: 'Žánr'),
+              textCapitalization: TextCapitalization.sentences,
             ),
             const SizedBox(height: 12),
             ElevatedButton.icon(
@@ -437,6 +440,7 @@ class _AddBookScreenState extends State<AddBookScreen> {
                     controller: _seriesNameController,
                     decoration: const InputDecoration(labelText: 'Název série'),
                     onChanged: (_) => setState(() {}),
+                    textCapitalization: TextCapitalization.sentences,
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -484,6 +488,7 @@ class _AddBookScreenState extends State<AddBookScreen> {
               minLines: 1,
               maxLines: null,
               keyboardType: TextInputType.multiline,
+              textCapitalization: TextCapitalization.sentences,
             ),
 
             const SizedBox(height: 16),

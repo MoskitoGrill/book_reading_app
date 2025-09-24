@@ -78,6 +78,7 @@ class _SelectSeriesScreenState extends State<SelectSeriesScreen> {
                     decoration: const InputDecoration(
                       labelText: "Nový název série",
                     ),
+                    textCapitalization: TextCapitalization.sentences,
                   ),
                 ),
                 const SizedBox(width: 8),
