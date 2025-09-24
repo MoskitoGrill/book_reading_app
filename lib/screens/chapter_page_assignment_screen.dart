@@ -75,7 +75,7 @@ class _ChapterPageAssignmentScreenState extends State<ChapterPageAssignmentScree
                           border: InputBorder.none,
                           isDense: true,
                         ),
-                        textCapitalization: TextCapitalization.words, // automaticky velké písmeno
+                        textCapitalization: TextCapitalization.sentences, 
                       ),
                     ),
                   ],
