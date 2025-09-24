@@ -391,7 +391,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
               ),
 
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 child: SegmentedButton<BookFilter>(
                   showSelectedIcon: false, //
                   segments: const [
