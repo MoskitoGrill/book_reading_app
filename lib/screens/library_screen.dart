@@ -6,6 +6,7 @@ import 'wishlist_screen.dart';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'series_detail_screen.dart';
+import 'add_book_screen.dart';
 
 enum BookFilter { all, reading, planned, finished }
 enum BookSort { alphabetical, recent }
@@ -297,143 +298,198 @@ class _LibraryScreenState extends State<LibraryScreen> {
     ];
   }
 
+  List<Book> _filteredBooksFromBox(Box<Book> box) {
+    final allBooks = box.values.toList();
+    List<Book> filtered;
+
+    switch (_selectedFilter) {
+      case BookFilter.reading:
+        filtered = allBooks.where((b) => b.status == BookStatus.reading).toList();
+        break;
+      case BookFilter.planned:
+        filtered = allBooks.where((b) => b.status == BookStatus.planned).toList();
+        break;
+      case BookFilter.finished:
+        filtered = allBooks.where((b) => b.status == BookStatus.finished).toList();
+        break;
+      case BookFilter.all:
+      default:
+        filtered = allBooks;
+    }
+
+    if (_searchQuery.isNotEmpty) {
+      final normalizedQuery = normalize(_searchQuery);
+      filtered = filtered.where((b) =>
+        normalize(b.title).contains(normalizedQuery) ||
+        normalize(b.author).contains(normalizedQuery) ||
+        normalize(b.genre ?? '').contains(normalizedQuery) ||
+        normalize(b.seriesName ?? '').contains(normalizedQuery)
+      ).toList();
+    }
+
+    return _sortBooks(filtered);
+  }
+
+  List<Book> _getBooksFromBox(Box<Book> box, BookStatus status) {
+    final books = box.values.where((b) => b.status == status).toList();
+    return _sortBooks(books);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final books = _filteredBooks();
-    final readingBooks = _getBooks(BookStatus.reading);
-    final plannedBooks = _getBooks(BookStatus.planned);
-    final finishedBooks = _getBooks(BookStatus.finished);
+    return ValueListenableBuilder(
+      valueListenable: Hive.box<Book>('books').listenable(),
+      builder: (context, Box<Book> box, _) {
+        final books = _filteredBooksFromBox(box);
+        final readingBooks = _getBooksFromBox(box, BookStatus.reading);
+        final plannedBooks = _getBooksFromBox(box, BookStatus.planned);
+        final finishedBooks = _getBooksFromBox(box, BookStatus.finished);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Knihovna"),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.favorite_border),
-            tooltip: "Wishlist",
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const WishlistScreen()),
-              );
-            },
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Hledat knihu nebo autora',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          setState(() {
-                            _searchQuery = '';
-                            _searchController.clear();
-                          });
-                        },
-                      )
-                    : null,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text("Knihovna"),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.favorite_border),
+                tooltip: "Wishlist",
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const WishlistScreen()),
+                  );
+                },
               ),
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value.toLowerCase();
-                });
-              },
-            ),
+            ],
           ),
-
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: SegmentedButton<BookFilter>(
-              showSelectedIcon: false, //
-              segments: const [
-                ButtonSegment(value: BookFilter.all, label: Text("Vše")),
-                ButtonSegment(value: BookFilter.reading, label: Text("Rozečtené")),
-                ButtonSegment(value: BookFilter.planned, label: Text("Nečtené")),
-                ButtonSegment(value: BookFilter.finished, label: Text("Přečtené")),
-              ],
-              selected: <BookFilter>{_selectedFilter},
-              onSelectionChanged: (newSelection) {
-                setState(() {
-                  _selectedFilter = newSelection.first;
-                });
-              },
-            ),
-          ),
-
-         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
+          body: Column(
             children: [
-              Expanded(
-                child: SegmentedButton<BookSort>(
-                  showSelectedIcon: false,
-                  segments: const [
-                    ButtonSegment(value: BookSort.recent, label: Text("Poslední aktivita")),
-                    ButtonSegment(value: BookSort.alphabetical, label: Text("Abecedně")),
-                  ],
-                  selected: <BookSort>{_selectedSort},
-                  onSelectionChanged: (newSelection) {
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Hledat knihu nebo autora',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              setState(() {
+                                _searchQuery = '';
+                                _searchController.clear();
+                              });
+                            },
+                          )
+                        : null,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onChanged: (value) {
                     setState(() {
-                      _selectedSort = newSelection.first;
+                      _searchQuery = value.toLowerCase();
                     });
                   },
                 ),
               ),
-              const SizedBox(width: 12),
-              ToggleButtons(
-                isSelected: [_isGridView == false, _isGridView == true],
-                onPressed: (index) async {
-                  final newValue = index == 1;
-                  setState(() {
-                    _isGridView = newValue;
-                  });
 
-                  final prefs = await SharedPreferences.getInstance();
-                  prefs.setBool('isGridView', newValue);
-                },
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: SegmentedButton<BookFilter>(
+                  showSelectedIcon: false, //
+                  segments: const [
+                    ButtonSegment(value: BookFilter.all, label: Text("Vše")),
+                    ButtonSegment(value: BookFilter.reading, label: Text("Rozečtené")),
+                    ButtonSegment(value: BookFilter.planned, label: Text("Nečtené")),
+                    ButtonSegment(value: BookFilter.finished, label: Text("Přečtené")),
+                  ],
+                  selected: <BookFilter>{_selectedFilter},
+                  onSelectionChanged: (newSelection) {
+                    setState(() {
+                      _selectedFilter = newSelection.first;
+                    });
+                  },
+                ),
+              ),
 
-                borderRadius: BorderRadius.circular(8),
-                constraints: const BoxConstraints(minWidth: 40, minHeight: 36),
-                children: const [
-                  Icon(Icons.view_list), // seznam
-                  Icon(Icons.grid_view), // mřížka
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: SegmentedButton<BookSort>(
+                      showSelectedIcon: false,
+                      segments: const [
+                        ButtonSegment(value: BookSort.recent, label: Text("Poslední aktivita")),
+                        ButtonSegment(value: BookSort.alphabetical, label: Text("Abecedně")),
+                      ],
+                      selected: <BookSort>{_selectedSort},
+                      onSelectionChanged: (newSelection) {
+                        setState(() {
+                          _selectedSort = newSelection.first;
+                        });
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ToggleButtons(
+                    isSelected: [_isGridView == false, _isGridView == true],
+                    onPressed: (index) async {
+                      final newValue = index == 1;
+                      setState(() {
+                        _isGridView = newValue;
+                      });
+
+                      final prefs = await SharedPreferences.getInstance();
+                      prefs.setBool('isGridView', newValue);
+                    },
+
+                    borderRadius: BorderRadius.circular(8),
+                    constraints: const BoxConstraints(minWidth: 40, minHeight: 36),
+                    children: const [
+                      Icon(Icons.view_list), // seznam
+                      Icon(Icons.grid_view), // mřížka
+                    ],
+                  ),
                 ],
+              ),
+            ),
+
+              Expanded(
+                child: _searchQuery.isNotEmpty
+                    ? (_filteredBooksFromBox(box).isEmpty
+                        ? const Center(child: Text("Žádné výsledky"))
+                        : (_isGridView
+                            ? _buildGridView(_filteredBooksFromBox(box))
+                            : ListView(children: _filteredBooksFromBox(box).map(_buildBookTile).toList())))
+                    : (box.isEmpty
+                        ? const Center(child: Text("Žádné knihy"))
+                        : (_selectedFilter == BookFilter.all
+                            ? ListView(
+                                children: [
+                                  ..._buildSection("Rozečtené knihy", readingBooks),
+                                  ..._buildSection("Nečtené knihy", plannedBooks),
+                                  ..._buildSection("Přečtené knihy", finishedBooks),
+                                ],
+                              )
+                            : _isGridView
+                                ? _buildGridView(books)
+                                : ListView(children: books.map(_buildBookTile).toList()))),
               ),
             ],
           ),
-        ),
-
-          Expanded(
-            child: _searchQuery.isNotEmpty
-                ? (_filteredBooks().isEmpty
-                    ? const Center(child: Text("Žádné výsledky"))
-                    : (_isGridView
-                        ? _buildGridView(_filteredBooks())
-                        : ListView(children: _filteredBooks().map(_buildBookTile).toList())))
-                : (bookBox.isEmpty
-                    ? const Center(child: Text("Žádné knihy"))
-                    : (_selectedFilter == BookFilter.all
-                        ? ListView(
-                            children: [
-                              ..._buildSection("Rozečtené knihy", readingBooks),
-                              ..._buildSection("Nečtené knihy", plannedBooks),
-                              ..._buildSection("Přečtené knihy", finishedBooks),
-                            ],
-                          )
-                        : _isGridView
-                            ? _buildGridView(books)
-                            : ListView(children: books.map(_buildBookTile).toList()))),
+          floatingActionButton: FloatingActionButton(
+            onPressed: () async {
+              final newBook = await Navigator.push<Book>(
+                context,
+                MaterialPageRoute(builder: (_) => const AddBookScreen()),
+              );
+              if (newBook != null) {
+                box.add(newBook);
+              }
+            },
+            child: const Icon(Icons.add),
           ),
-        ],
-      ),
+
+        );
+      },
     );
   }
 }
