@@ -13,10 +13,10 @@ void main() async {
   Hive.registerAdapter(ReadingModeAdapter()); // <- přidej
 
   // Otevřít box a uložit do proměnné
-  final box = await Hive.openBox<Book>('books');
+  await Hive.openBox<Book>('books');
 
   // ✅ Smazat všechna data (pouze při testování!)
-  await box.clear();
+  // await box.clear();
 
   runApp(const BookReadingApp());
 }
