@@ -4,7 +4,7 @@ class ChapterPageAssignmentScreen extends StatefulWidget {
   final int totalChapters;
   final int totalPages;
   final List<int>? existingAssignments;
-  final void Function(List<int>) onSaved;
+  final void Function(List<int> chapterEndPages, List<String> chapterNames) onSaved;
 
   const ChapterPageAssignmentScreen({
     super.key,
@@ -21,15 +21,31 @@ class ChapterPageAssignmentScreen extends StatefulWidget {
 class _ChapterPageAssignmentScreenState extends State<ChapterPageAssignmentScreen> {
   int? _expandedChapter;
   late List<int> _chapterEndPages;
+  late List<TextEditingController> _chapterNameControllers;
 
   @override
   void initState() {
     super.initState();
+
+    // inicializace koncových stránek kapitol
     _chapterEndPages = List.generate(widget.totalChapters, (i) {
       return widget.existingAssignments != null && i < widget.existingAssignments!.length
           ? widget.existingAssignments![i]
           : ((i + 1) * (widget.totalPages / widget.totalChapters)).ceil();
     });
+
+    // inicializace kontrolerů pro názvy kapitol
+    _chapterNameControllers = List.generate(widget.totalChapters, (i) {
+      return TextEditingController(text: "Kapitola ${i + 1}");
+    });
+  }
+
+  @override
+  void dispose() {
+    for (var controller in _chapterNameControllers) {
+      controller.dispose();
+    }
+    super.dispose();
   }
 
   @override
@@ -48,7 +64,22 @@ class _ChapterPageAssignmentScreenState extends State<ChapterPageAssignmentScree
           return Column(
             children: [
               ListTile(
-                title: Text("Kapitola ${index + 1}"),
+                title: Row(
+                  children: [
+                    Text("Kapitola ${index + 1}: "),
+                    Expanded(
+                      child: TextField(
+                        controller: _chapterNameControllers[index],
+                        decoration: const InputDecoration(
+                          hintText: "Název kapitoly",
+                          border: InputBorder.none,
+                          isDense: true,
+                        ),
+                        textCapitalization: TextCapitalization.words, // automaticky velké písmeno
+                      ),
+                    ),
+                  ],
+                ),
                 subtitle: Text("Končí na straně: ${_chapterEndPages[index]}"),
                 trailing: canExpand
                     ? Icon(isExpanded ? Icons.expand_less : Icons.expand_more)
@@ -59,6 +90,7 @@ class _ChapterPageAssignmentScreenState extends State<ChapterPageAssignmentScree
                       })
                     : null,
               ),
+
               if (isExpanded)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -97,7 +129,11 @@ class _ChapterPageAssignmentScreenState extends State<ChapterPageAssignmentScree
               );
               return;
             }
-            widget.onSaved(_chapterEndPages);
+            widget.onSaved(
+              _chapterEndPages,
+              _chapterNameControllers.map((c) => c.text.trim()).toList(),
+            );
+
             Navigator.of(context).pop();
           },
           style: ElevatedButton.styleFrom(

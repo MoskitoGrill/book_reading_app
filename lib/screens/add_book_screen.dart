@@ -685,9 +685,10 @@ class _AddBookScreenState extends State<AddBookScreen> {
                         totalPages: _pageCount,
                         totalChapters: _chapterCount,
                         existingAssignments: _chapterEndPages,
-                        onSaved: (List<int> result) {
+                        onSaved: (List<int> chapterEndPages, List<String> chapterNames) {
                           setState(() {
-                            _chapterEndPages = result;
+                            _chapterEndPages = chapterEndPages;
+                            _chapterNames = chapterNames;
                           });
                         },
                       ),
