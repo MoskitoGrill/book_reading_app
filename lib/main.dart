@@ -30,7 +30,7 @@ class BookReadingApp extends StatelessWidget {
     return MaterialApp(
       title: 'Book Reading App',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color.fromARGB(255, 0, 216, 194)),
         useMaterial3: true,
       ),
       home: const MainNavigation(),
@@ -71,25 +71,29 @@ class _MainNavigationState extends State<MainNavigation> {
     return Scaffold(
       body: PageView(
         controller: _pageController,
-        children: _screens,
+        physics: const BouncingScrollPhysics(),
         onPageChanged: (index) {
           setState(() {
             _selectedIndex = index;
           });
         },
+        children: _screens,
       ),
+
       bottomNavigationBar: NavigationBar(
+        key: ValueKey(_selectedIndex), 
         selectedIndex: _selectedIndex,
         onDestinationSelected: (index) {
           setState(() {
             _selectedIndex = index;
-            _pageController.animateToPage(
-              index,
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-            );
           });
+          _pageController.animateToPage(
+            index,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
         },
+        indicatorColor: const Color.fromARGB(255, 13, 226, 205),
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.dashboard),
@@ -104,4 +108,3 @@ class _MainNavigationState extends State<MainNavigation> {
     );
   }
 }
-
