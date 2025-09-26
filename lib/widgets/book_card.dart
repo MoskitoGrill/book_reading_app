@@ -296,6 +296,26 @@ int chapterFromPage(int page) {
                           color: Colors.grey,
                         ),
                       ),
+                      if (book.chapterNames != null && book.chapterNames!.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          "Kapitola ${_currentChapter + 1}: ${book.chapterNames![_currentChapter]}",
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (_currentChapter + 1 < book.chapterNames!.length)
+                          Text(
+                            "Následuje: ${book.chapterNames![_currentChapter + 1]}",
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontStyle: FontStyle.italic,
+                              color: Colors.grey,
+                            ),
+                          ),
+                      ],
+
                     ],
                   ),
                 ),
