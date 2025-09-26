@@ -178,20 +178,26 @@ class Book extends HiveObject {
   }
 
   DateTime? get estimatedEndDate {
-    if (dailyGoal == null || dailyGoal! <= 0) return null;
-
-    int remaining;
+    if (dailyGoal == null || dailyGoal == 0) return null;
 
     if (readingMode == ReadingMode.pages) {
       final current = currentPage;
-      remaining = totalPages - current;
-    } else {
-      remaining = totalChapters - currentChapter;
+      final remaining = (totalPages - current).clamp(0, effectivePageCount);
+      if (remaining <= 0) return null;
+
+      return DateTime.now().add(
+        Duration(days: (remaining / dailyGoal!).ceil()),
+      );
+    } else if (readingMode == ReadingMode.chapters) {
+      final remaining = (totalChapters - currentChapter).clamp(0, totalChapters);
+      if (remaining <= 0) return null;
+
+      return DateTime.now().add(
+        Duration(days: (remaining / dailyGoal!).ceil()),
+      );
     }
 
-    if (remaining <= 0) return null;
-
-    return DateTime.now().add(Duration(days: (remaining / dailyGoal!).ceil()));
+    return null;
   }
 }
 

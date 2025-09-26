@@ -88,7 +88,9 @@ class _EditReadingPlanScreenState extends State<EditReadingPlanScreen> {
 
     final calculatedDailyGoal = () {
       if (_goalMode == GoalMode.targetDate && daysUntilTarget > 0) {
-        final total = _readingMode == ReadingMode.chapters ? widget.book.totalChapters : widget.book.totalPages;
+        final total = _readingMode == ReadingMode.chapters
+          ? widget.book.totalChapters
+          : widget.book.effectivePageCount;
         return (total / daysUntilTarget).ceil();
       } else {
         return _dailyGoal ?? 1;
@@ -166,13 +168,40 @@ class _EditReadingPlanScreenState extends State<EditReadingPlanScreen> {
                 value: _dailyGoal ?? 1,
                 minValue: 1,
                 maxValue: _readingMode == ReadingMode.chapters
-                    ? (widget.book.totalChapters > 0 ? widget.book.totalChapters : 1)
-                    : (widget.book.totalPages > 0 ? widget.book.totalPages : 1),
+                  ? (widget.book.totalChapters > 0 ? widget.book.totalChapters : 1)
+                  : (widget.book.effectivePageCount > 0 ? widget.book.effectivePageCount : 1),
                 onChanged: (value) => setState(() => _dailyGoal = value),
               ),
-            ]
+            ],
+            if (_goalMode == GoalMode.targetDate) ...[
+              Row(
+                children: [
+                  if (widget.book.totalChapters > 0)
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => setState(() => _readingMode = ReadingMode.chapters),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _readingMode == ReadingMode.chapters ? Colors.green : Colors.grey[300],
+                          foregroundColor: _readingMode == ReadingMode.chapters ? Colors.white : Colors.black,
+                        ),
+                        child: const Text("Kapitoly"),
+                      ),
+                    ),
+                  if (widget.book.totalPages > 0)
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => setState(() => _readingMode = ReadingMode.pages),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _readingMode == ReadingMode.pages ? Colors.green : Colors.grey[300],
+                          foregroundColor: _readingMode == ReadingMode.pages ? Colors.white : Colors.black,
+                        ),
+                        child: const Text("Stránky"),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
 
-            else
               TextButton.icon(
                 onPressed: _pickTargetDate,
                 icon: const Icon(Icons.calendar_today),
@@ -180,30 +209,60 @@ class _EditReadingPlanScreenState extends State<EditReadingPlanScreen> {
                     ? 'Vyber datum dokončení'
                     : 'Zvolené datum: ${_targetDate!.toLocal().toString().split(' ')[0]}'),
               ),
-            const SizedBox(height: 12),
-            TextButton.icon(
-              onPressed: _pickStartDate,
-              icon: const Icon(Icons.play_arrow),
-              label: Text("Začít od: ${_startDate.toLocal().toString().split(' ')[0]}"),
-            ),
-            TextButton(
-              onPressed: () => setState(() => _startDate = DateTime.now().add(const Duration(days: 1))),
-              child: const Text("Začít od zítřka"),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              "Denně číst cca $calculatedDailyGoal ${_readingMode == ReadingMode.chapters ? 'kapitol' : 'stránek'}",
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            if (_goalMode == GoalMode.dailyGoal && _dailyGoal != null && _dailyGoal! > 0)
-              Text(
-                "Odhadované dokončení: ${_startDate.add(Duration(
-                  days: ((_readingMode == ReadingMode.chapters
-                      ? widget.book.totalChapters
-                      : widget.book.totalPages) ~/ _dailyGoal!).clamp(1, 9999))).toLocal().toString().split(' ')[0]}",
-                style: const TextStyle(color: Colors.grey),
-              ),
+              const SizedBox(height: 12),
 
+              if (_targetDate != null && daysUntilTarget > 0)
+                Builder(
+                  builder: (_) {
+                    if (_readingMode == ReadingMode.pages) {
+                      final dailyPages = (widget.book.effectivePageCount / daysUntilTarget).ceil();
+                      if (widget.book.totalChapters > 0) {
+                        final dailyChapters = (widget.book.totalChapters / daysUntilTarget).ceil();
+                        return Text(
+                          "Denně přečíst cca $dailyPages stránek (≈ $dailyChapters kapitol)",
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        );
+                      }
+                      return Text(
+                        "Denně přečíst cca $dailyPages stránek",
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      );
+                    } else {
+                      final dailyChapters = (widget.book.totalChapters / daysUntilTarget).ceil();
+                      if (widget.book.totalPages > 0) {
+                        final dailyPages = (widget.book.effectivePageCount / daysUntilTarget).ceil();
+                        return Text(
+                          "Denně přečíst cca $dailyChapters kapitol (≈ $dailyPages stránek)",
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        );
+                      }
+                      return Text(
+                        "Denně přečíst cca $dailyChapters kapitol",
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      );
+                    }
+                  },
+                ),
+            ],
+            const SizedBox(height: 12),
+              TextButton.icon(
+                onPressed: _pickStartDate,
+                icon: const Icon(Icons.play_arrow),
+                label: Text("Začít od: ${_startDate.toLocal().toString().split(' ')[0]}"),
+              ),
+              TextButton(
+                onPressed: () => setState(() => _startDate = DateTime.now().add(const Duration(days: 1))),
+                child: const Text("Začít od zítřka"),
+              ),
+              const SizedBox(height: 12),
+              if (_goalMode == GoalMode.dailyGoal && _dailyGoal != null && _dailyGoal! > 0)
+                Text(
+                  "Odhadované dokončení: ${_startDate.add(Duration(
+                    days: ((_readingMode == ReadingMode.chapters
+                        ? widget.book.totalChapters
+                        : widget.book.effectivePageCount) ~/ _dailyGoal!).clamp(1, 9999))).toLocal().toString().split(' ')[0]}",
+                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
+                ),
 
             const Spacer(),
             ElevatedButton.icon(

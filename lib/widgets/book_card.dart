@@ -318,8 +318,8 @@ void _refreshState() {
             const SizedBox(height: 16),
             Text(
               book.readingMode == ReadingMode.pages
-                  ? 'Aktuální strana: $_currentPage / ${book.totalPages}'
-                  : 'Aktuální kapitola: $_currentChapter / ${book.totalChapters}'
+                  ? 'Aktuální strana: $_currentPage / ${book.totalPages} (celkem přečíst ${book.effectivePageCount} stran)'
+                  : 'Aktuální kapitola: $_currentChapter / ${book.totalChapters}',
             ),
 
             Slider(
