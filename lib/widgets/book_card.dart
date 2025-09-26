@@ -315,7 +315,6 @@ int chapterFromPage(int page) {
                             ),
                           ),
                       ],
-
                     ],
                   ),
                 ),
