@@ -247,7 +247,7 @@ class BookDetailSheet extends StatelessWidget {
                               borderRadius: BorderRadius.circular(8),
                               child: Image.file(
                                 File(book.coverImagePath!),
-                                width: 140, // dvojnásobná velikost
+                                width: 140, 
                                 height: 200,
                                 fit: BoxFit.cover,
                               ),
@@ -321,13 +321,6 @@ class BookDetailSheet extends StatelessWidget {
                 ),
 
               const SizedBox(height: 16),
-
-              if (book.status == BookStatus.reading || book.status == BookStatus.planned)
-                ElevatedButton.icon(
-                  onPressed: () => _markAsFinished(context),
-                  icon: const Icon(Icons.check),
-                  label: const Text("Označit jako přečtené"),
-                ),
 
               const SizedBox(height: 8),
 

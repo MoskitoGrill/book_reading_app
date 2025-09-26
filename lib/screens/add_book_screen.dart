@@ -254,6 +254,68 @@ class _AddBookScreenState extends State<AddBookScreen> {
     }
   }
 
+  void _submitAsFinished() {
+    final title = _titleController.text.trim();
+    final author = _authorController.text.trim();
+    final description = _descriptionController.text.trim();
+    final chapters = _chaptersEnabled ? (_chapterCount < 1 ? 1 : _chapterCount) : 0;
+    final pages = _pagesEnabled ? (_pageCount < 1 ? 1 : _pageCount) : 0;
+
+    if (title.isEmpty || (!_chaptersEnabled && !_pagesEnabled)) return;
+
+    if (widget.existingBook != null) {
+      final book = widget.existingBook!;
+      book.title = title;
+      book.author = author;
+      book.description = description;
+      book.totalChapters = chapters;
+      book.totalPages = pages;
+      book.genre = _genreController.text.trim();
+      book.coverImagePath = _coverImage?.path;
+      book.chapterEndPages = _chapterEndPages;
+      book.chapterNames = _chapterNames;
+      book.startPage = _customStartPageEnabled ? _startPage : null;
+      book.readingMode = _readingMode;
+      book.seriesName = _seriesNameController.text.trim().isEmpty ? null : _seriesNameController.text.trim();
+      book.seriesIndex = widget.existingBook?.seriesIndex;
+
+      // rovnou jako přečtená
+      book.status = BookStatus.finished;
+      book.wasRead = true;
+      if (chapters > 0) {
+        book.currentChapter = chapters;
+      } else if (pages > 0) {
+        book.currentChapter = pages;
+      }
+
+      book.save();
+      Navigator.of(context).pop(book);
+    } else {
+      final newBook = Book(
+        title: title,
+        author: author,
+        description: description,
+        totalChapters: chapters,
+        totalPages: pages,
+        genre: _genreController.text.trim(),
+        coverImagePath: _coverImage?.path,
+        chapterEndPages: _chapterEndPages,
+        chapterNames: _chapterNames,
+        startPage: _customStartPageEnabled ? _startPage : null,
+        readingMode: _readingMode,
+        seriesName: _seriesNameController.text.trim().isEmpty ? null : _seriesNameController.text.trim(),
+        seriesIndex: _seriesNameController.text.trim().isNotEmpty
+            ? Hive.box<Book>('books').values.where((b) => b.seriesName == _seriesNameController.text.trim()).length + 1
+            : null,
+        status: BookStatus.finished,
+        wasRead: true,
+        currentChapter: chapters > 0 ? chapters : pages,
+      );
+
+      Navigator.of(context).pop(newBook);
+    }
+  }
+
   Widget _buildGoalPlanning() {
     if (!_planningEnabled) return const SizedBox.shrink();
 
@@ -736,9 +798,24 @@ class _AddBookScreenState extends State<AddBookScreen> {
             ],
 
             const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _submit,
-              child: Text(widget.existingBook != null ? 'Uložit změny' : 'Přidat knihu'),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _submit,
+                    child: Text(widget.existingBook != null ? 'Uložit změny' : 'Přidat knihu'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _submitAsFinished,
+                    child: Text(widget.existingBook != null
+                        ? 'Uložit a označit jako přečtené'
+                        : 'Přidat knihu mezi přečtené'),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
