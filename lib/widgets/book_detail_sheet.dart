@@ -68,7 +68,6 @@ class BookDetailSheet extends StatelessWidget {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("Smazat knihu"),
         content: const Text("Opravdu chcete tuto knihu smazat?"),
         actions: [
           TextButton(
@@ -90,6 +89,59 @@ class BookDetailSheet extends StatelessWidget {
     }
   }
 
+  void _showChaptersDialog(BuildContext context) {
+    if (book.chapterNames == null || book.chapterEndPages == null) {
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Seznam kapitol"),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: book.chapterNames!.length,
+            itemBuilder: (context, index) {
+              final name = book.chapterNames![index];
+              final startPage = (index == 0)
+                  ? (book.startPage ?? 1)
+                  : book.chapterEndPages![index - 1] + 1;
+              final endPage = book.chapterEndPages![index];
+
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Kapitola ${index + 1}: $name",
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    Text(
+                      "Začíná na straně $startPage a končí na straně $endPage",
+                      style: const TextStyle(color: Colors.grey),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text("Zavřít"),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return DraggableScrollableSheet(
@@ -105,124 +157,168 @@ class BookDetailSheet extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // ====== LEVÁ STRANA - TEXTY ======
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Expanded(
-                              child: Text(book.title, style: Theme.of(context).textTheme.titleLarge),
-                            ),
-                            if (book.seriesName != null && book.seriesIndex != null)
-                              GestureDetector(
-                                onTap: () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => SeriesDetailScreen(seriesName: book.seriesName!),
+                        if (book.seriesName != null && book.seriesIndex != null)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: GestureDetector(
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => SeriesDetailScreen(
+                                      seriesName: book.seriesName!,
                                     ),
-                                  );
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  margin: const EdgeInsets.only(left: 8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey.shade200,
-                                    borderRadius: BorderRadius.circular(16),
                                   ),
-                                  child: Text(
-                                    '${book.seriesName!}: ${book.seriesIndex}. díl',
-                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                                );
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade200,
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Text(
+                                  '${book.seriesName!}: ${book.seriesIndex}. díl',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ),
-                          ],
+                            ),
+                          ),
+                        // Název knihy
+                        Text(
+                          book.title,
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineSmall
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 8),
+
+                        // Autor
                         GestureDetector(
                           onTap: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (_) => AuthorBooksScreen(authorName: book.author),
+                                builder: (_) =>
+                                    AuthorBooksScreen(authorName: book.author),
                               ),
                             );
                           },
                           child: Text(
                             book.author,
-                            style: const TextStyle(fontStyle: FontStyle.italic, color: Colors.grey),
+                            style: const TextStyle(
+                              fontStyle: FontStyle.italic,
+                              color: Colors.grey,
+                            ),
                           ),
                         ),
+
+                        const SizedBox(height: 8),
+
+                        // Žánr
+                        if (book.genre.isNotEmpty)
+                          Text(
+                            "Žánr: ${book.genre}",
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w500),
+                          ),
                       ],
                     ),
                   ),
 
-                  // Obálka (pokud existuje)
-                  if (book.coverImagePath != null)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 16),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.file(
-                          File(book.coverImagePath!),
-                          width: 70,
-                          height: 100,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
-
-                  // Tlačítka
+                  // ====== PRAVÁ STRANA - OBÁLKA + TLAČÍTKA ======
+                  
                   Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit),
-                        tooltip: "Upravit",
-                        onPressed: () => _editBook(context),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete),
-                        tooltip: "Smazat",
-                        onPressed: () => _deleteBook(context),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (book.coverImagePath != null)
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.file(
+                                File(book.coverImagePath!),
+                                width: 140, // dvojnásobná velikost
+                                height: 200,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          const SizedBox(width: 8),
+                          Column(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.edit),
+                                tooltip: "Upravit",
+                                onPressed: () => _editBook(context),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete),
+                                tooltip: "Smazat",
+                                onPressed: () => _deleteBook(context),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.schedule),
+                                tooltip: "Plán čtení",
+                                onPressed: () => _editReadingPlan(context),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ],
                   ),
+
                 ],
               ),
 
-              if (book.genre.isNotEmpty) ...[
-                Text("Žánr: ${book.genre}", style: const TextStyle(fontWeight: FontWeight.w500)),
-                const SizedBox(height: 8),
-              ],
               const SizedBox(height: 16),
+
+              // Popis a základní info
               Text("Popis:"),
               Text(book.description),
               const SizedBox(height: 12),
-              Text("Celkem kapitol: ${book.totalChapters}"),
-              Text("Celkem stránek: ${book.totalPages}"),
-              if (book.readingMode != null)
-                Text(
-                  "Režim čtení: ${book.readingMode == ReadingMode.chapters ? "Kapitoly" : "Stránky"}",
-                  style: const TextStyle(fontWeight: FontWeight.w500),
-              ),
-              if (book.startPage != null)
-              Text("Začíná na straně: ${book.startPage}"),
 
-              const SizedBox(height: 8),
-              if (book.status == BookStatus.reading || book.status == BookStatus.planned) ...[
-                Text(
-                  "Progres: ${book.readingMode == ReadingMode.pages && book.totalPages > 0 
-                    ? ((book.currentChapter / book.totalChapters * book.totalPages).clamp(0, book.totalPages).round())
-                    : book.currentChapter} / ${book.readingMode == ReadingMode.pages ? book.totalPages : book.totalChapters} ${book.readingMode == ReadingMode.pages ? "stránek" : "kapitol"}",
+              // Celkem kapitol (klikací)
+              GestureDetector(
+                onTap: () => _showChaptersDialog(context),
+                child: Text(
+                  "Celkem kapitol: ${book.totalChapters}",
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
-                Text("Denní cíl: ${book.calculatedDailyGoalChapters} kapitol / ${book.calculatedDailyGoalPages} stránek"),
-                if (book.targetDate != null)
-                  Text("Dokončit do: ${book.targetDate!.toLocal().toString().split(' ')[0]}")
-                else if (book.estimatedEndDate != null)
-                  Text("Odhadované dokončení: ${book.estimatedEndDate!.toLocal().toString().split(' ')[0]}"),
-                if (book.startDate != null)
-                  Text("Začít číst: ${formatStartDate(book.startDate!)}"),
-              ],
+              ),
+              const SizedBox(height: 4),
+
+              // Celkem stránek
+              Text(
+                "Celkem stránek: ${book.totalPages}",
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 4),
+
+              // Začíná na straně
+              if (book.startPage != null)
+                Text(
+                  "Začíná na straně: ${book.startPage}",
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
 
               const SizedBox(height: 16),
 
