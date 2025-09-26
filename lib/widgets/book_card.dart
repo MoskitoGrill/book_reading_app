@@ -515,6 +515,6 @@ String formatStartDate(DateTime date) {
   } else if (start == today.add(const Duration(days: 1))) {
     return 'Zítra';
   } else {
-    return '${start.day.toString().padLeft(2, '0')}.${start.month.toString().padLeft(2, '0')}.${start.year}';
+    return '${start.day.toString().padLeft(2, '0')}. ${start.month.toString().padLeft(2, '0')}. ${start.year}';
   }
 }
