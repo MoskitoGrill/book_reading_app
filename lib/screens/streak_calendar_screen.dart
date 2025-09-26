@@ -24,6 +24,8 @@ class _StreakCalendarScreenState extends State<StreakCalendarScreen> {
     // první záznam v aplikaci
     final books = Hive.box<Book>('books').values.toList();
     DateTime? earliest;
+
+    // 1) hledej nejdřívější datum v readingDates
     for (final b in books) {
       for (final d in b.readingDates) {
         if (earliest == null || d.isBefore(earliest)) {
@@ -31,8 +33,28 @@ class _StreakCalendarScreenState extends State<StreakCalendarScreen> {
         }
       }
     }
+
+    // 2) hledej nejdřívější datum v readingHistory
+    for (final b in books) {
+      final hist = b.readingHistory ?? {};
+      for (final k in hist.keys) {
+        final parts = k.split('-');
+        if (parts.length == 3) {
+          final d = DateTime(
+            int.parse(parts[0]),
+            int.parse(parts[1]),
+            int.parse(parts[2]),
+          );
+          if (earliest == null || d.isBefore(earliest)) {
+            earliest = d;
+          }
+        }
+      }
+    }
+
     _installDate = earliest ?? now;
   }
+
 
   /// všechny dny aktuální mřížky měsíce
   List<DateTime> _daysInMonth(DateTime month) {
@@ -51,109 +73,106 @@ class _StreakCalendarScreenState extends State<StreakCalendarScreen> {
   }
 
   BadgeType _badgeForDay(DateTime day, List<Book> books, DateTime today) {
-    if (day.isAfter(today)) return BadgeType.future;
-    if (day.isBefore(_installDate)) return BadgeType.empty;
+    if (day.isAfter(today)) return BadgeType.future;   // světle šedá
+    if (day.isBefore(_installDate)) return BadgeType.empty; // šedá
 
-    // všechny knihy ke čtení
     final activeBooks = books.where((b) => b.status == BookStatus.reading).toList();
-
     if (activeBooks.isEmpty) return BadgeType.empty;
 
-    // zjistíme, kolik knih se četlo
-    final booksReadToday = activeBooks.where((book) =>
-      book.readingDates.any((d) =>
-        d.year == day.year && d.month == day.month && d.day == day.day)).toList();
+    final key =
+        "${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}";
 
-    if (booksReadToday.isEmpty) {
-      return BadgeType.none;
-    }
-
-    int goals = 0;
+    int total = activeBooks.length;
     int success = 0;
-    for (final book in booksReadToday) {
-      final key = "${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}";
-      final read = book.readingHistory?[key] ?? 0;
-      final goal = book.readingMode == ReadingMode.pages
-          ? book.calculatedDailyGoalPages
-          : book.calculatedDailyGoalChapters;
+    int readButNotGoal = 0;
 
-      goals++;
-      if (read >= goal) success++;
+    for (final b in activeBooks) {
+      final read = b.readingHistory?[key] ?? 0;
+      final goal = b.readingMode == ReadingMode.pages
+        ? (b.targetDate != null ? b.adaptiveDailyGoalPages : b.calculatedDailyGoalPages)
+        : (b.targetDate != null ? b.adaptiveDailyGoalChapters : b.calculatedDailyGoalChapters);
+
+      if (read >= goal && goal > 0) {
+        success++;
+      } else if (read > 0) {
+        readButNotGoal++;
+      }
     }
 
-    if (success == 0) {
-      return BadgeType.partial; // něco přečteno, ale žádný cíl
-    } else if (success == goals && goals == activeBooks.length) {
-      return BadgeType.all; // všechny cíle splněny
+    if (success == 0 && readButNotGoal == 0) {
+      return BadgeType.none; // ⚫ nic nepřečteno
+    } else if (success == total) {
+      return BadgeType.all; // ⭐ všechny cíle splněny
+    } else if (success > 0) {
+      return BadgeType.single; // ✅ aspoň jedna kniha splněna
     } else {
-      return BadgeType.single; // aspoň jeden cíl splněn
+      return BadgeType.partial; // 🟠 četl, ale žádný cíl nesplnil
     }
   }
 
-  /// aktuální streak
-  int calculateGlobalStreak(List<Book> books) {
-    final now = DateTime.now();
-    int streak = 0;
+    /// aktuální streak (od dneška zpět dokud jsi každý den splnil alespoň jeden cíl)
+    int calculateGlobalStreak(List<Book> books) {
+      final now = DateTime.now();
+      int streak = 0;
 
-    for (int i = 0; i < 1000; i++) {
-      final day =
-          DateTime(now.year, now.month, now.day).subtract(Duration(days: i));
+      for (int i = 0; i < 1000; i++) {
+        final day = DateTime(now.year, now.month, now.day).subtract(Duration(days: i));
+        final key =
+            "${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}";
 
-      // budoucí den ignoruj
-      if (day.isAfter(now)) continue;
+        final activeBooks = books.where((b) => b.status == BookStatus.reading).toList();
+        if (activeBooks.isEmpty) continue;
 
-      // knihy, co jsou k čtení
-      final activeBooks =
-          books.where((b) => b.status == BookStatus.reading).toList();
+        final anyGoalMet = activeBooks.any((b) {
+          final read = b.readingHistory?[key] ?? 0;
+          final goal = b.readingMode == ReadingMode.pages
+              ? b.calculatedDailyGoalPages
+              : b.calculatedDailyGoalChapters;
+          return read >= goal && goal > 0;
+        });
 
-      if (activeBooks.isEmpty) {
-        // žádné knihy → streak se nezvyšuje, ale ani nespadne
-        continue;
+        if (anyGoalMet) {
+          streak++;
+        } else {
+          break; // streak se přerušil
+        }
       }
 
-      final anyRead = activeBooks.any((book) => book.readingDates.any(
-          (d) => d.year == day.year && d.month == day.month && d.day == day.day));
-
-      if (anyRead) {
-        streak++;
-      } else {
-        break;
-      }
+      return streak;
     }
 
-    return streak;
-  }
+    /// nejdelší streak v historii
+    int calculateLongestStreak(List<Book> books) {
+      final now = DateTime.now();
+      int longest = 0;
+      int current = 0;
 
-  /// nejdelší streak
-  int calculateLongestStreak(List<Book> books) {
-    final now = DateTime.now();
-    int longest = 0;
-    int current = 0;
+      for (int i = 0; i < 1000; i++) {
+        final day = DateTime(now.year, now.month, now.day).subtract(Duration(days: i));
+        final key =
+            "${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}";
 
-    for (int i = 0; i < 1000; i++) {
-      final day =
-          DateTime(now.year, now.month, now.day).subtract(Duration(days: i));
+        final activeBooks = books.where((b) => b.status == BookStatus.reading).toList();
+        if (activeBooks.isEmpty) continue;
 
-      final activeBooks =
-          books.where((b) => b.status == BookStatus.reading).toList();
+        final anyGoalMet = activeBooks.any((b) {
+          final read = b.readingHistory?[key] ?? 0;
+          final goal = b.readingMode == ReadingMode.pages
+              ? b.calculatedDailyGoalPages
+              : b.calculatedDailyGoalChapters;
+          return read >= goal && goal > 0;
+        });
 
-      if (activeBooks.isEmpty) {
-        continue; // dny bez knih ignorujeme
+        if (anyGoalMet) {
+          current++;
+          if (current > longest) longest = current;
+        } else {
+          current = 0;
+        }
       }
 
-      final anyRead = activeBooks.any((book) => book.readingDates.any(
-          (d) => d.year == day.year && d.month == day.month && d.day == day.day));
-
-      if (anyRead) {
-        current++;
-        if (current > longest) longest = current;
-      } else {
-        current = 0;
-      }
+      return longest;
     }
-
-    return longest;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -230,17 +249,23 @@ class _StreakCalendarScreenState extends State<StreakCalendarScreen> {
                   Color color;
                   switch (type) {
                     case BadgeType.future:
-                      color = Colors.grey.shade300; break;
+                      color = Colors.grey.shade300; // světle šedá
+                      break;
                     case BadgeType.empty:
-                      color = Colors.grey.shade400; break;
+                      color = Colors.grey.shade500; // šedá
+                      break;
                     case BadgeType.none:
-                      color = Colors.black; break;
+                      color = Colors.black; // černá
+                      break;
                     case BadgeType.partial:
-                      color = Colors.orange; break;
+                      color = Colors.orange; // oranžová
+                      break;
                     case BadgeType.single:
-                      color = Colors.green; break;
+                      color = Colors.green; // zelená
+                      break;
                     case BadgeType.all:
-                      color = Colors.amber; break;
+                      color = Colors.yellow.shade700; // žlutá
+                      break;
                   }
 
                   return GestureDetector(
@@ -306,9 +331,13 @@ class _StreakCalendarScreenState extends State<StreakCalendarScreen> {
   }
 
   void _showDayDetail(BuildContext context, DateTime day, List<Book> books) {
-    final booksReadToday = books.where((book) =>
-        book.readingDates.any((d) =>
-            d.year == day.year && d.month == day.month && d.day == day.day)).toList();
+    final key =
+        "${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}";
+
+    final booksReadToday = books.where((book) {
+      final read = book.readingHistory?[key] ?? 0;
+      return read > 0;
+    }).toList();
 
     showDialog(
       context: context,
@@ -319,12 +348,10 @@ class _StreakCalendarScreenState extends State<StreakCalendarScreen> {
             : Column(
                 mainAxisSize: MainAxisSize.min,
                 children: booksReadToday.map((book) {
-                  final key =
-                      "${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}";
                   final read = book.readingHistory?[key] ?? 0;
                   final goal = book.readingMode == ReadingMode.pages
-                      ? book.calculatedDailyGoalPages
-                      : book.calculatedDailyGoalChapters;
+                      ? (book.targetDate != null ? book.adaptiveDailyGoalPages : book.calculatedDailyGoalPages)
+                      : (book.targetDate != null ? book.adaptiveDailyGoalChapters : book.calculatedDailyGoalChapters);
 
                   return ListTile(
                     title: Text(book.title),

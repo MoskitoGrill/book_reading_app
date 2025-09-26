@@ -104,15 +104,21 @@ class Book extends HiveObject {
   }
 
   int get calculatedDailyGoalChapters {
-    if (targetDate != null) {
-      final days = targetDate!.difference(DateTime.now()).inDays;
-      return days > 0 ? (totalChapters - currentChapter) ~/ days : totalChapters;
-    } else if (dailyGoal != null) {
-      return dailyGoal!;
-    } else {
-      return 1;
-    }
+  if (targetDate != null) {
+    final today = DateTime.now();
+    int days = targetDate!
+        .difference(DateTime(today.year, today.month, today.day))
+        .inDays + 1;
+    if (days < 1) days = 1;
+
+    final remaining = (totalChapters - currentChapter).clamp(0, totalChapters);
+    final perDay = (remaining / days).ceil();
+    return perDay > 0 ? perDay : 1;
   }
+
+  if (dailyGoal != null && dailyGoal! > 0) return dailyGoal!;
+  return 1;
+}
 
   int get calculatedDailyGoalPages {
     if (readingMode == ReadingMode.pages) {

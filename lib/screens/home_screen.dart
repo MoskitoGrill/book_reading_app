@@ -19,24 +19,32 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
   }
 
-  // ✅ Tady je funkce správně
   int calculateGlobalStreak(List<Book> books) {
     final now = DateTime.now();
     int streak = 0;
 
     for (int i = 0; i < 1000; i++) {
       final day = DateTime(now.year, now.month, now.day).subtract(Duration(days: i));
-      final anyBookReadToday = books.any((book) =>
-        book.readingDates.any((d) =>
-          d.year == day.year && d.month == day.month && d.day == day.day));
+      final key =
+          "${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}";
 
-      if (anyBookReadToday) {
+      final activeBooks = books.where((b) => b.status == BookStatus.reading).toList();
+      if (activeBooks.isEmpty) continue;
+
+      final anyGoalMet = activeBooks.any((b) {
+        final read = b.readingHistory?[key] ?? 0;
+        final goal = b.readingMode == ReadingMode.pages
+            ? (b.targetDate != null ? b.adaptiveDailyGoalPages : b.calculatedDailyGoalPages)
+            : (b.targetDate != null ? b.adaptiveDailyGoalChapters : b.calculatedDailyGoalChapters);
+        return read >= goal && goal > 0;
+      });
+
+      if (anyGoalMet) {
         streak++;
       } else {
         break;
       }
     }
-
     return streak;
   }
 

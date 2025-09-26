@@ -64,10 +64,30 @@ class BookDetailSheet extends StatelessWidget {
     }
   }
 
-  void _deleteBook(BuildContext context) {
-    book.delete();
-    onUpdated();
-    Navigator.of(context).pop();
+  void _deleteBook(BuildContext context) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Smazat knihu"),
+        content: const Text("Opravdu chcete tuto knihu smazat?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text("Ne"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text("Ano"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      book.delete();
+      onUpdated();
+      Navigator.of(context).pop();
+    }
   }
 
   @override
