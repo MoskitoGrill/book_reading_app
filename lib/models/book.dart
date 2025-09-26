@@ -196,6 +196,51 @@ class Book extends HiveObject {
   }
 
   int get safeStartPage => startPage ?? 1;
+
+  int pagesForDailyGoalChapters(int chaptersToRead) {
+    if (chapterEndPages == null || startPage == null) return 0;
+
+    int currentIndex = currentChapter;
+    int currentPage = this.currentPage;
+
+    // 1) Zbytek aktuální kapitoly
+    int start = currentPage;
+    int end = chapterEndPages![currentIndex];
+    int pages = end - start + 1;
+
+    // 2) Další celé kapitoly
+    int chaptersRemaining = chaptersToRead - 1; 
+    for (int i = 0; i < chaptersRemaining; i++) {
+      int nextIndex = currentIndex + 1 + i;
+      if (nextIndex < chapterEndPages!.length) {
+        int prevEnd = nextIndex == 0 ? (startPage! - 1) : chapterEndPages![nextIndex - 1];
+        int nextEnd = chapterEndPages![nextIndex];
+        pages += (nextEnd - prevEnd);
+      }
+    }
+    return pages;
+  }
+  int get adaptiveDailyGoalPages {
+    if (targetDate == null) return dailyGoal ?? 1;
+
+    final today = DateTime.now();
+    final daysRemaining = targetDate!.difference(today).inDays + 1; // +1 aby se počítal i dnešní den
+    if (daysRemaining <= 0) return totalPages;
+
+    final remaining = (totalPages - currentPage).clamp(0, effectivePageCount);
+    return (remaining / daysRemaining).ceil();
+  }
+
+  int get adaptiveDailyGoalChapters {
+    if (targetDate == null) return dailyGoal ?? 1;
+
+    final today = DateTime.now();
+    final daysRemaining = targetDate!.difference(today).inDays + 1;
+    if (daysRemaining <= 0) return totalChapters;
+
+    final remaining = (totalChapters - currentChapter).clamp(0, totalChapters);
+    return (remaining / daysRemaining).ceil();
+  }
 }
 
 // ✅ Enumy musí být mimo třídu Book

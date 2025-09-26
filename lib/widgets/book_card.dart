@@ -334,62 +334,67 @@ int chapterFromPage(int page) {
                 color: Colors.grey,
               ),
             ),
-
             // 📊 Denní cíl nebo plán do data
             Builder(
               builder: (context) {
                 if (book.readingMode == ReadingMode.pages) {
+                  // --- Režim stránky ---
                   if (book.targetDate != null) {
-                    return Text(
-                      "Dnes nutno přečíst ${book.calculatedDailyGoalPages} stránek",
-                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Dnes nutno přečíst ${book.adaptiveDailyGoalPages} stránek",
+                          style: const TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                        Text("Plánované datum dokončení: ${formatStartDate(book.targetDate!)}"),
+                      ],
                     );
                   } else {
-                    return Text(
-                      "Denní cíl: ${book.calculatedDailyGoalPages} stránek",
-                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Denní cíl: ${book.adaptiveDailyGoalPages} stránek",
+                          style: const TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                        if (book.estimatedEndDate != null)
+                          Text("Datum dočtení: ${formatStartDate(book.estimatedEndDate!)}"),
+                      ],
                     );
                   }
                 } else {
-                  // režim kapitoly
-                  int chapters = book.calculatedDailyGoalChapters;
+                  // --- Režim kapitoly ---
+                  int chapters = (book.targetDate != null
+                      ? book.adaptiveDailyGoalChapters
+                      : book.calculatedDailyGoalChapters);
+
+                  if (chapters < 1) chapters = 1;
+
+                  int pages = book.pagesForDailyGoalChapters(chapters);
+
                   if (book.targetDate != null) {
-                    // pokud vychází méně než 1 kapitola denně
-                    if (chapters < 1) {
-                      chapters = 1;
-                      return Text(
-                        "Dnes možno přečíst 1 kapitolu",
-                        style: const TextStyle(fontWeight: FontWeight.w500),
-                      );
-                    }
-                    // výpočet stránek kapitoly/kapitol
-                    int? startPage = book.startPage;
-                    int pages = 0;
-                    if (book.chapterEndPages != null && startPage != null) {
-                      int currentIndex = book.currentChapter;
-                      int endIndex = (currentIndex + chapters - 1).clamp(0, book.chapterEndPages!.length - 1);
-                      int start = currentIndex == 0 ? startPage : book.chapterEndPages![currentIndex - 1] + 1;
-                      int end = book.chapterEndPages![endIndex];
-                      pages = end - start + 1;
-                    }
-                    return Text(
-                      "Dnes nutno přečíst $chapters kapitol${pages > 0 ? " (≈ $pages stran)" : ""}",
-                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Dnes nutno přečíst $chapters kapitol, tedy $pages stránek",
+                          style: const TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                        Text("Plánované datum dokončení: ${formatStartDate(book.targetDate!)}"),
+                      ],
                     );
                   } else {
-                    // Denní cíl, režim kapitoly
-                    int? startPage = book.startPage;
-                    int pages = 0;
-                    if (book.chapterEndPages != null && startPage != null) {
-                      int currentIndex = book.currentChapter;
-                      int endIndex = (currentIndex + chapters - 1).clamp(0, book.chapterEndPages!.length - 1);
-                      int start = currentIndex == 0 ? startPage : book.chapterEndPages![currentIndex - 1] + 1;
-                      int end = book.chapterEndPages![endIndex];
-                      pages = end - start + 1;
-                    }
-                    return Text(
-                      "Denní cíl: $chapters kapitol${pages > 0 ? " (≈ $pages stran)" : ""}",
-                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Denní cíl: $chapters kapitol, tedy $pages stránek",
+                          style: const TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                        if (book.estimatedEndDate != null)
+                          Text("Datum dočtení: ${formatStartDate(book.estimatedEndDate!)}"),
+                      ],
                     );
                   }
                 }
