@@ -47,43 +47,58 @@ void _refreshState() {
   }
 }
 
-  void _updateChapter(int newChapter) {
+int chapterFromPage(int page) {
+    if (book.chapterEndPages != null && book.chapterEndPages!.isNotEmpty) {
+      for (int i = 0; i < book.chapterEndPages!.length; i++) {
+        if (page <= book.chapterEndPages![i]) return i;
+      }
+      return book.chapterEndPages!.length - 1;
+    }
 
-  print("Aktuální kapitola: ${book.currentChapter}, nová: $newChapter");
+    if (book.totalChapters > 0 && book.totalPages > 0 && book.startPage != null) {
+      final pagesPerChapter =
+          (book.effectivePageCount / book.totalChapters).ceil();
+      return ((page - book.startPage!) / pagesPerChapter)
+          .floor()
+          .clamp(0, book.totalChapters - 1);
+    }
 
+    return _currentChapter;
+  }
+
+  void _updateProgress(int newPage) {
+    final newChapter = chapterFromPage(newPage);
     final previousChapter = book.currentChapter;
-    final delta = (newChapter - previousChapter);
-
-    if (delta <= 0) return;
 
     setState(() {
+      _currentPage = newPage;
       _currentChapter = newChapter;
+      book.lastPage = newPage;
       book.currentChapter = newChapter;
-      _currentPage = book.currentPage;
 
-      final today = DateTime.now();
-      final dateKey = "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
+      // update historie (jen když posuneme dál v kapitolách)
+      final delta = newChapter - previousChapter;
+      if (delta > 0) {
+        final today = DateTime.now();
+        final dateKey =
+            "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
 
-      book.readingHistory ??= {};
-      book.readingHistory![dateKey] =
-          (book.readingHistory![dateKey] ?? 0) + delta;
+        book.readingHistory ??= {};
+        book.readingHistory![dateKey] =
+            (book.readingHistory![dateKey] ?? 0) + delta;
 
-      if (!book.readingDates.any((d) =>
-          d.year == today.year && d.month == today.month && d.day == today.day)) {
-        book.readingDates.add(DateTime(today.year, today.month, today.day));
-      }
-
-      if (_currentChapter >= book.totalChapters) {
-        book.currentChapter = book.totalChapters;
-        book.status = BookStatus.finished;
-        book.finishedAt = DateTime.now();
-        _askToContinueSeries(context, book);
+        if (!book.readingDates.any((d) =>
+            d.year == today.year &&
+            d.month == today.month &&
+            d.day == today.day)) {
+          book.readingDates.add(DateTime(today.year, today.month, today.day));
+        }
       }
 
       book.save();
     });
 
-    widget.onChanged(); 
+    widget.onChanged();
   }
 
   void _askToContinueSeries(BuildContext context, Book? finishedBook) {
@@ -144,20 +159,55 @@ void _refreshState() {
   }
 
   void _completeDailyGoal() {
-    //final book = this.book;
+    final maxPages = book.totalPages;
+    final maxChapters = book.totalChapters;
 
-    final daily = book.readingMode == ReadingMode.pages
-      ? book.calculatedDailyGoalPages
-      : book.calculatedDailyGoalChapters;
+    if (book.readingMode == ReadingMode.pages) {
+      // 🔹 Režim stránky
+      final daily = book.calculatedDailyGoalPages;
+      final newPage = (_currentPage + daily);
+      _updateProgress(newPage >= maxPages ? maxPages : newPage);
 
-  final max = book.readingMode == ReadingMode.pages
-      ? book.totalPages
-      : book.totalChapters;
+    } else {
+      // 🔹 Režim kapitoly
+      final dailyChapters = book.calculatedDailyGoalChapters > 0
+          ? book.calculatedDailyGoalChapters
+          : 1;
 
-  final newChapter = (_currentChapter + daily).clamp(0, max);
-  _updateChapter(newChapter);
+      if (book.chapterEndPages == null || book.startPage == null) {
+        // 📘 Slider = kapitoly (neznáme rozložení stránek)
+        final newChapter = (_currentChapter + dailyChapters);
+        _currentChapter = newChapter >= maxChapters ? maxChapters : newChapter;
+        book.currentChapter = _currentChapter;
+        book.save();
+        widget.onChanged();
 
-  widget.onChanged();
+      } else {
+        // 📘 Slider = stránky (známe konce kapitol)
+        int currentIndex = chapterFromPage(_currentPage);
+
+        // zkontroluj, jestli jsme na konci aktuální kapitoly
+        bool atChapterEnd = _currentPage == book.chapterEndPages![currentIndex];
+
+        int targetChapterIndex;
+        if (atChapterEnd) {
+          // už stojíme na konci kapitoly → posuň o celé dailyChapters
+          targetChapterIndex =
+              (currentIndex + dailyChapters).clamp(0, maxChapters - 1);
+        } else {
+          // jsme uvnitř kapitoly → počítáme ji jako první
+          targetChapterIndex =
+              (currentIndex + dailyChapters - 1).clamp(0, maxChapters - 1);
+        }
+
+        if (targetChapterIndex >= maxChapters - 1) {
+          _updateProgress(maxPages);
+        } else {
+          int endPage = book.chapterEndPages![targetChapterIndex];
+          _updateProgress(endPage);
+        }
+      }
+    }
   }
 
   Widget _buildMiniCalendar(Book book) {
@@ -215,22 +265,7 @@ void _refreshState() {
   @override
   Widget build(BuildContext context) {
     final book = this.book;
-    int chapterFromPage(int page) {
-      if (book.chapterEndPages != null && book.startPage != null) {
-        for (int i = 0; i < book.chapterEndPages!.length; i++) {
-          if (page <= book.chapterEndPages![i]) return i;
-        }
-        return book.chapterEndPages!.length - 1;
-      }
-
-      if (book.totalChapters > 0 && book.totalPages > 0 && book.startPage != null) {
-        final pagesPerChapter = (book.effectivePageCount / book.totalChapters).ceil();
-        return ((page - book.startPage!) / pagesPerChapter).floor().clamp(0, book.totalChapters - 1);
-      }
-
-      return _currentChapter;
-    }
-
+    
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       elevation: 4,
@@ -291,22 +326,75 @@ void _refreshState() {
 
             const SizedBox(height: 12),           
             const SizedBox(height: 8),
+            // 📖 Režim čtení
             Text(
-              book.readingMode == ReadingMode.pages
-                  ? 'Denní cíl: ${book.calculatedDailyGoalPages} stránek'
-                  : 'Denní cíl: ${book.calculatedDailyGoalChapters} kapitol',
-              style: const TextStyle(fontWeight: FontWeight.w500),
-            ),
-            Text(
-              'Režim čtení: ${book.readingMode == ReadingMode.pages ? 'Stránky' : 'Kapitoly'}',
-              style: const TextStyle(fontStyle: FontStyle.italic, color: Colors.grey),
+              "Režim: ${book.readingMode == ReadingMode.pages ? 'Stránky' : 'Kapitoly'}",
+              style: const TextStyle(
+                fontStyle: FontStyle.italic,
+                color: Colors.grey,
+              ),
             ),
 
-            if (book.targetDate != null)
-              Text('Dokončit do: ${book.targetDate!.toLocal().toString().split(' ')[0]}')
-            else if (book.dailyGoal != null && book.dailyGoal! > 0 && book.estimatedEndDate != null)
-              Text('Odhadované dokončení: ${book.estimatedEndDate!.toLocal().toString().split(' ')[0]}'),
-
+            // 📊 Denní cíl nebo plán do data
+            Builder(
+              builder: (context) {
+                if (book.readingMode == ReadingMode.pages) {
+                  if (book.targetDate != null) {
+                    return Text(
+                      "Dnes nutno přečíst ${book.calculatedDailyGoalPages} stránek",
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    );
+                  } else {
+                    return Text(
+                      "Denní cíl: ${book.calculatedDailyGoalPages} stránek",
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    );
+                  }
+                } else {
+                  // režim kapitoly
+                  int chapters = book.calculatedDailyGoalChapters;
+                  if (book.targetDate != null) {
+                    // pokud vychází méně než 1 kapitola denně
+                    if (chapters < 1) {
+                      chapters = 1;
+                      return Text(
+                        "Dnes možno přečíst 1 kapitolu",
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      );
+                    }
+                    // výpočet stránek kapitoly/kapitol
+                    int? startPage = book.startPage;
+                    int pages = 0;
+                    if (book.chapterEndPages != null && startPage != null) {
+                      int currentIndex = book.currentChapter;
+                      int endIndex = (currentIndex + chapters - 1).clamp(0, book.chapterEndPages!.length - 1);
+                      int start = currentIndex == 0 ? startPage : book.chapterEndPages![currentIndex - 1] + 1;
+                      int end = book.chapterEndPages![endIndex];
+                      pages = end - start + 1;
+                    }
+                    return Text(
+                      "Dnes nutno přečíst $chapters kapitol${pages > 0 ? " (≈ $pages stran)" : ""}",
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    );
+                  } else {
+                    // Denní cíl, režim kapitoly
+                    int? startPage = book.startPage;
+                    int pages = 0;
+                    if (book.chapterEndPages != null && startPage != null) {
+                      int currentIndex = book.currentChapter;
+                      int endIndex = (currentIndex + chapters - 1).clamp(0, book.chapterEndPages!.length - 1);
+                      int start = currentIndex == 0 ? startPage : book.chapterEndPages![currentIndex - 1] + 1;
+                      int end = book.chapterEndPages![endIndex];
+                      pages = end - start + 1;
+                    }
+                    return Text(
+                      "Denní cíl: $chapters kapitol${pages > 0 ? " (≈ $pages stran)" : ""}",
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    );
+                  }
+                }
+              },
+            ),
             if (book.startDate != null)
               Text('Začít číst: ${formatStartDate(book.startDate!)}'),
 
@@ -316,43 +404,74 @@ void _refreshState() {
             _buildMiniCalendar(book),
 
             const SizedBox(height: 16),
-            Text(
-              book.readingMode == ReadingMode.pages
-                  ? 'Aktuální strana: $_currentPage / ${book.totalPages} (celkem přečíst ${book.effectivePageCount} stran)'
-                  : 'Aktuální kapitola: $_currentChapter / ${book.totalChapters}',
+            Builder(
+              builder: (context) {
+                if (book.readingMode == ReadingMode.pages) {
+                  return Text(
+                    'Aktuální strana: $_currentPage / ${book.totalPages}',
+                  );
+                } else {
+                  if (book.chapterEndPages != null && book.chapterEndPages!.isNotEmpty) {
+                    final chapter = chapterFromPage(_currentPage);
+                    return Text(
+                      'Aktuální kapitola: ${chapter + 1} / ${book.totalChapters} a strana: $_currentPage / ${book.totalPages}',
+                    );
+                  } else {
+                    return Text(
+                      'Aktuální kapitola: $_currentChapter / ${book.totalChapters}',
+                    );
+                  }
+                }
+              },
             ),
 
             Slider(
-              value: (book.readingMode == ReadingMode.pages
-                  ? _currentPage.clamp(book.startPage ?? 1, book.totalPages)
-                  : _currentChapter.clamp(0, book.totalChapters)
+              value: (book.chapterEndPages != null && book.chapterEndPages!.isNotEmpty
+                  ? _currentPage.clamp(book.safeStartPage, book.totalPages)
+                  : (book.readingMode == ReadingMode.pages
+                      ? _currentPage.clamp(book.startPage ?? 1, book.totalPages)
+                      : _currentChapter.clamp(0, book.totalChapters))
               ).toDouble(),
-              min: (book.readingMode == ReadingMode.pages ? (book.startPage ?? 1) : 0).toDouble(),
-              max: (book.readingMode == ReadingMode.pages ? book.totalPages : book.totalChapters).toDouble(),
-              divisions: book.readingMode == ReadingMode.pages
-                ? (book.totalPages - (book.startPage ?? 1)).clamp(1, book.totalPages)
-                : book.totalChapters.clamp(1, book.totalChapters),
 
-              label: (book.readingMode == ReadingMode.pages ? _currentPage : _currentChapter).toString(),
+              min: (book.chapterEndPages != null && book.chapterEndPages!.isNotEmpty)
+                  ? book.safeStartPage.toDouble()
+                  : (book.readingMode == ReadingMode.pages ? (book.startPage ?? 1).toDouble() : 0.0),
+
+              max: (book.chapterEndPages != null && book.chapterEndPages!.isNotEmpty)
+                  ? book.totalPages.toDouble()
+                  : (book.readingMode == ReadingMode.pages
+                      ? book.totalPages.toDouble()
+                      : book.totalChapters.toDouble()),
+
+              divisions: (book.chapterEndPages != null && book.chapterEndPages!.isNotEmpty)
+                  ? (book.totalPages - book.safeStartPage + 1) // počet stránek včetně poslední
+                  : (book.readingMode == ReadingMode.pages
+                      ? (book.totalPages - (book.startPage ?? 1) + 1).clamp(1, book.totalPages)
+                      : book.totalChapters.clamp(1, book.totalChapters)),
+
+              label: (book.chapterEndPages != null && book.chapterEndPages!.isNotEmpty)
+                  ? _currentPage.toString()
+                  : (book.readingMode == ReadingMode.pages ? _currentPage.toString() : _currentChapter.toString()),
+
               onChanged: (value) {
-                setState(() {
-                  if (book.readingMode == ReadingMode.pages) {
-                    final chapter = chapterFromPage(value.toInt());
-                    _updateChapter(chapter);
-                    _currentPage = value.toInt();
-                  } else {
-                    _updateChapter(value.toInt());
-                  }
-                });
-              }, // ✅ správně uzavřeno
+                if (book.readingMode == ReadingMode.chapters && (book.chapterEndPages == null || book.startPage == null)) {
+                  final newChapter = value.toInt();
+                  _currentChapter = newChapter;
+                  book.currentChapter = newChapter;
+                  book.save();
+                  widget.onChanged();
+                } else {
+                  final newPage = value.toInt();
+                  _updateProgress(newPage);
+                }
+              },
             ),
 
             const SizedBox(height: 8),
             ElevatedButton.icon(
-              onPressed: (book.readingMode == ReadingMode.pages && _currentPage >= book.totalPages) ||
-                      (book.readingMode == ReadingMode.chapters && _currentChapter >= book.totalChapters)
-                ? null
-                : _completeDailyGoal,
+              onPressed: (_currentPage >= book.totalPages && _currentChapter >= book.totalChapters)
+                  ? null
+                  : _completeDailyGoal,
               icon: const Icon(Icons.check_circle),
               label: const Text("Splnil jsem denní cíl"),
             ),

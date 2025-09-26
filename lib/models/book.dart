@@ -69,6 +69,9 @@ class Book extends HiveObject {
   @HiveField(21)
   Map<String, int>? readingHistory;
 
+  @HiveField(22)
+  int lastPage;
+
   Book({
     required this.title,
     required this.author,
@@ -81,17 +84,20 @@ class Book extends HiveObject {
     required this.status,
     this.genre = '',
     this.coverImagePath,
-    this.startDate,
+    DateTime? startDate,
     this.chapterEndPages,
     this.chapterNames,
-    this.startPage,
+    int? startPage,
     this.readingMode,
     this.wasRead = false,
     this.seriesName,
     this.seriesIndex,
-    List<DateTime>? readingDates, // ← přidat jako parametr
+    List<DateTime>? readingDates,
     this.readingHistory,
-  }) : readingDates = readingDates ?? [];
+    this.lastPage = 0,
+  })  : startPage = startPage ?? 1,
+        startDate = startDate,
+        readingDates = readingDates ?? [];
 
   int get effectivePageCount {
     return totalPages - (startPage ?? 1) + 1;
@@ -144,21 +150,6 @@ class Book extends HiveObject {
     return streak;
   }
 
-  int get currentPage {
-    if (startPage == null) return currentChapter;
-
-    if (chapterEndPages != null && currentChapter < chapterEndPages!.length) {
-      return chapterEndPages![currentChapter];
-    }
-
-    if (totalChapters > 0 && totalPages > 0) {
-      final pagesPerChapter = (effectivePageCount / totalChapters).ceil();
-      return (startPage ?? 1) + currentChapter * pagesPerChapter;
-    }
-
-    return (startPage ?? 1);
-  }
-
   int get maxChapterByPage {
     if (chapterEndPages != null && startPage != null) {
       return chapterEndPages!.indexWhere((end) => end >= currentPage);
@@ -199,6 +190,12 @@ class Book extends HiveObject {
 
     return null;
   }
+
+  int get currentPage {
+    return lastPage > 0 ? lastPage : (startPage?? 1);
+  }
+
+  int get safeStartPage => startPage ?? 1;
 }
 
 // ✅ Enumy musí být mimo třídu Book
