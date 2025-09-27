@@ -367,7 +367,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 child: TextField(
                   controller: _searchController,
                   decoration: InputDecoration(
-                    hintText: 'Hledat knihu nebo autora',
+                    hintText: 'Hledat',
                     prefixIcon: const Icon(Icons.search),
                     suffixIcon: _searchQuery.isNotEmpty
                         ? IconButton(

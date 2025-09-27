@@ -247,9 +247,10 @@ class Book extends HiveObject {
     final remaining = (totalChapters - currentChapter).clamp(0, totalChapters);
     return (remaining / daysRemaining).ceil();
   }
-}
+  List<String> get authorList =>
+    author.split(',').map((a) => a.trim()).where((a) => a.isNotEmpty).toList();
 
-// ✅ Enumy musí být mimo třídu Book
+}
 
 @HiveType(typeId: 0)
 enum BookStatus {

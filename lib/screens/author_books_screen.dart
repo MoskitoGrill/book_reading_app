@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import '../models/book.dart';
 import '../widgets/book_detail_sheet.dart';
+import 'dart:io';
 
 class AuthorBooksScreen extends StatelessWidget {
   final String authorName;
@@ -22,8 +23,18 @@ class AuthorBooksScreen extends StatelessWidget {
         itemBuilder: (context, index) {
           final book = authorBooks[index];
           return ListTile(
+            leading: book.coverImagePath != null
+                ? Image.file(
+                    File(book.coverImagePath!),
+                    width: 40,
+                    height: 60,
+                    fit: BoxFit.cover,
+                  )
+                : const Icon(Icons.book),
             title: Text(book.title),
-            subtitle: Text(book.author),
+            subtitle: book.seriesName != null
+                ? Text('${book.seriesName!}: ${book.seriesIndex ?? '-'} . díl')
+                : null,
             onTap: () {
               showModalBottomSheet(
                 context: context,

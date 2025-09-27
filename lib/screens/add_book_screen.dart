@@ -211,14 +211,13 @@ class _AddBookScreenState extends State<AddBookScreen> {
       book.readingMode = _readingMode;
       book.seriesName = _seriesNameController.text.trim().isEmpty ? null : _seriesNameController.text.trim();
       if (book.seriesName != null) {
-        final allBooks = Hive.box<Book>('books').values
-            .where((b) => b.seriesName == book.seriesName)
-            .toList();
-        book.seriesIndex = allBooks.length + 1;
-      } else {
-        book.seriesIndex = null;
-      }
-
+      final allBooks = Hive.box<Book>('books').values
+          .where((b) => b.seriesName == book.seriesName && b.key != book.key)
+          .toList();
+      book.seriesIndex = allBooks.length + 1;
+    } else {
+      book.seriesIndex = null;
+    }
 
       if (book.status == BookStatus.planned) {
         book.status = _planningEnabled ? BookStatus.reading : BookStatus.planned;
@@ -246,8 +245,10 @@ class _AddBookScreenState extends State<AddBookScreen> {
         readingMode: _readingMode,
         seriesName: _seriesNameController.text.trim().isEmpty ? null : _seriesNameController.text.trim(),
         seriesIndex: _seriesNameController.text.trim().isNotEmpty
-            ? Hive.box<Book>('books').values.where((b) => b.seriesName == _seriesNameController.text.trim()).length + 1
-            : null,
+        ? Hive.box<Book>('books').values
+            .where((b) => b.seriesName == _seriesNameController.text.trim())
+            .length + 1
+        : null,
       );
 
       Navigator.of(context).pop(newBook);
@@ -747,6 +748,7 @@ class _AddBookScreenState extends State<AddBookScreen> {
                         totalPages: _pageCount,
                         totalChapters: _chapterCount,
                         existingAssignments: _chapterEndPages,
+                        existingChapterNames: _chapterNames, // 🟢 přidáno
                         onSaved: (List<int> chapterEndPages, List<String> chapterNames) {
                           setState(() {
                             _chapterEndPages = chapterEndPages;

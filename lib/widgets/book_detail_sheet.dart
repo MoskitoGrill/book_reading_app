@@ -90,8 +90,8 @@ class BookDetailSheet extends StatelessWidget {
   }
 
   void _showChaptersDialog(BuildContext context) {
-    if (book.chapterNames == null || book.chapterEndPages == null) {
-      return;
+    if (book.chapterNames == null || book.chapterNames!.isEmpty) {
+      return; // když nejsou žádné názvy kapitol
     }
 
     showDialog(
@@ -105,30 +105,45 @@ class BookDetailSheet extends StatelessWidget {
             itemCount: book.chapterNames!.length,
             itemBuilder: (context, index) {
               final name = book.chapterNames![index];
-              final startPage = (index == 0)
-                  ? (book.startPage ?? 1)
-                  : book.chapterEndPages![index - 1] + 1;
-              final endPage = book.chapterEndPages![index];
 
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Kapitola ${index + 1}: $name",
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+              if (book.chapterEndPages != null && book.chapterEndPages!.length > index) {
+                final startPage = (index == 0)
+                    ? (book.startPage ?? 1)
+                    : book.chapterEndPages![index - 1] + 1;
+                final endPage = book.chapterEndPages![index];
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Kapitola ${index + 1}: $name",
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
                       ),
+                      Text(
+                        "Začíná na straně $startPage a končí na straně $endPage",
+                        style: const TextStyle(color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                );
+              } else {
+                // 🟢 Jen názvy (bez stránek)
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Text(
+                    "Kapitola ${index + 1}: $name",
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
                     ),
-                    Text(
-                      "Začíná na straně $startPage a končí na straně $endPage",
-                      style: const TextStyle(color: Colors.grey),
-                    ),
-                  ],
-                ),
-              );
+                  ),
+                );
+              }
             },
           ),
         ),
@@ -202,23 +217,27 @@ class BookDetailSheet extends StatelessWidget {
                         ),
                         const SizedBox(height: 8),
 
-                        // Autor
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    AuthorBooksScreen(authorName: book.author),
+                        // Autoři 
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: book.authorList.map((a) {
+                            return GestureDetector(
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => AuthorBooksScreen(authorName: a),
+                                  ),
+                                );
+                              },
+                              child: Text(
+                                a,
+                                style: const TextStyle(
+                                  fontStyle: FontStyle.italic,
+                                  color: Colors.grey,
+                                ),
                               ),
                             );
-                          },
-                          child: Text(
-                            book.author,
-                            style: const TextStyle(
-                              fontStyle: FontStyle.italic,
-                              color: Colors.grey,
-                            ),
-                          ),
+                          }).toList(),
                         ),
 
                         const SizedBox(height: 8),

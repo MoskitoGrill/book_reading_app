@@ -4,6 +4,7 @@ class ChapterPageAssignmentScreen extends StatefulWidget {
   final int totalChapters;
   final int totalPages;
   final List<int>? existingAssignments;
+  final List<String>? existingChapterNames; // 🟢 nové
   final void Function(List<int> chapterEndPages, List<String> chapterNames) onSaved;
 
   const ChapterPageAssignmentScreen({
@@ -12,6 +13,7 @@ class ChapterPageAssignmentScreen extends StatefulWidget {
     required this.totalPages,
     required this.onSaved,
     this.existingAssignments,
+    this.existingChapterNames, 
   });
 
   @override
@@ -34,9 +36,12 @@ class _ChapterPageAssignmentScreenState extends State<ChapterPageAssignmentScree
           : ((i + 1) * (widget.totalPages / widget.totalChapters)).ceil();
     });
 
-    // inicializace kontrolerů pro názvy kapitol
     _chapterNameControllers = List.generate(widget.totalChapters, (i) {
-      return TextEditingController(text: "Kapitola ${i + 1}");
+      final existingNames = widget.existingChapterNames;
+      final name = (existingNames != null && i < existingNames.length)
+          ? existingNames[i]
+          : "";
+      return TextEditingController(text: name);
     });
   }
 

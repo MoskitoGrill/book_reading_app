@@ -26,7 +26,7 @@ class _ChapterRenameScreenState extends State<ChapterRenameScreen> {
       final existing = widget.existingNames;
       final name = (existing != null && index < existing.length && existing[index].trim().isNotEmpty)
           ? existing[index]
-          : "Kapitola ${index + 1}";
+          : "";
       return TextEditingController(text: name);
     });
   }
@@ -40,10 +40,12 @@ class _ChapterRenameScreenState extends State<ChapterRenameScreen> {
   }
 
   void _save() {
-    final names = _controllers.map((c) {
-      final text = c.text.trim();
-      return text.isEmpty || text == '' ? '' : text;
+    final names = _controllers.asMap().entries.map((entry) {
+      final index = entry.key;
+      final text = entry.value.text.trim();
+      return text.isEmpty ? "Kapitola ${index + 1}" : text;
     }).toList();
+
     widget.onSaved(names);
     Navigator.of(context).pop();
   }
